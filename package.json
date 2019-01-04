@@ -1,0 +1,8 @@
+{
+  "name": "reputed-tiler",
+  "version": "0.0.1",
+  "description": "Simple Window Tiler, like quicktile",
+  "scripts": [ "bin/reputed-tiler", "bin/reptile" ],
+  "install": "make install"
+}
+

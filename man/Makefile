@@ -1,3 +1,9 @@
+# Usage:
+#   # Install ruby-install and chruby, then, e.g.,
+#   chruby 2.5
+#   gem install --user-install ronn hpricot jaro_winkler rdiscount
+#   make all
+
 RONN := ronn
 PAGES := reputed-tiler.1
 

@@ -1,0 +1,76 @@
+reputed-tiler(1) -- simple quicktile-like window tiler
+======================================================
+
+
+SYNOPSIS
+--------
+
+reputed-tiler [-v|--version] [-h|--help] <direction>
+
+<direction> specifies the screen location for reposition, one of: `left`, `top`, `right`, or `bottom`.
+(`up` and `down` are also acceptable alternatives for `top` and `bottom`, respectively.)
+
+
+DESCRIPTION
+-----------
+
+`reputed-tiler` is a simple shell script to reposition the topmost, active window.
+
+
+OPTIONS
+-------
+
+  * `-h`, `--help`:
+    Display short help message
+
+  * `-v`, `--version`:
+    Display the version number
+
+
+USAGE
+-----
+
+Best called via keybindings.
+
+E.g., to map pressing the Windows key and the left arrow key to repositioning the active,
+topmost window, one could run the following shell commands:
+
+    next_index=$(( \
+      $(dconf list /org/mate/desktop/keybindings/ | \
+        sed "s#custom([0-9]+)/#\1#" | \
+        sort -n | \
+        tail -1 \
+      ) + 1 ))
+
+      dconf write /org/mate/desktop/keybindings/custom${next_index}/name "Reptile Left"
+      dconf write /org/mate/desktop/keybindings/custom${next_index}/binding "<Mod4>Left"
+      dconf write /org/mate/desktop/keybindings/custom${next_index}/action "${HOME}/.local/bin/reputed-tiler --left"
+
+You can also call from within a terminal window to test on the same, e.g.,
+
+	 ./reputed-tiler --left
+	 ./reputed-tiler --up
+	 ./reputed-tiler --right
+	 ./reputed-tiler --down
+
+Specify the same direction multiple times to cycle through options, e.g.,
+
+     ./reputed-tiler --left
+     ./reputed-tiler --left
+     ./reputed-tiler --left
+     ./reputed-tiler --left
+
+
+SEE ALSO
+--------
+
+Project page: _https://github.com/landonb/reputed-tiler_
+
+
+COPYRIGHT
+---------
+
+(c) 2019 Landon Bouma
+
+reputed-tiler is released under the terms of an AGPLv3 license.
+

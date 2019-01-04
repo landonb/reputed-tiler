@@ -1,0 +1,92 @@
+.\" generated with Ronn/v0.7.3
+.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.
+.TH "REPUTED\-TILER" "1" "January 2019" "" ""
+.
+.SH "NAME"
+\fBreputed\-tiler\fR \- simple quicktile\-like window tiler
+.
+.SH "SYNOPSIS"
+reputed\-tiler [\-v|\-\-version] [\-h|\-\-help] \fIdirection\fR
+.
+.P
+\fIdirection\fR specifies the screen location for reposition, one of: \fBleft\fR, \fBtop\fR, \fBright\fR, or \fBbottom\fR\. (\fBup\fR and \fBdown\fR are also acceptable alternatives for \fBtop\fR and \fBbottom\fR, respectively\.)
+.
+.SH "DESCRIPTION"
+\fBreputed\-tiler\fR is a simple shell script to reposition the topmost, active window\.
+.
+.SH "OPTIONS"
+.
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Display short help message
+.
+.TP
+\fB\-v\fR, \fB\-\-version\fR
+Display the version number
+.
+.SH "USAGE"
+Best called via keybindings\.
+.
+.P
+E\.g\., to map pressing the Windows key and the left arrow key to repositioning the active, topmost window, one could run the following shell commands:
+.
+.IP "" 4
+.
+.nf
+
+next_index=$(( \e
+  $(dconf list /org/mate/desktop/keybindings/ | \e
+    sed "s#custom([0\-9]+)/#\e1#" | \e
+    sort \-n | \e
+    tail \-1 \e
+  ) + 1 ))
+
+  dconf write /org/mate/desktop/keybindings/custom${next_index}/name "Reptile Left"
+  dconf write /org/mate/desktop/keybindings/custom${next_index}/binding "<Mod4>Left"
+  dconf write /org/mate/desktop/keybindings/custom${next_index}/action "${HOME}/\.local/bin/reputed\-tiler \-\-left"
+.
+.fi
+.
+.IP "" 0
+.
+.P
+You can also call from within a terminal window to test on the same, e\.g\.,
+.
+.IP "" 4
+.
+.nf
+
+ \./reputed\-tiler \-\-left
+ \./reputed\-tiler \-\-up
+ \./reputed\-tiler \-\-right
+ \./reputed\-tiler \-\-down
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Specify the same direction multiple times to cycle through options, e\.g\.,
+.
+.IP "" 4
+.
+.nf
+
+ \./reputed\-tiler \-\-left
+ \./reputed\-tiler \-\-left
+ \./reputed\-tiler \-\-left
+ \./reputed\-tiler \-\-left
+.
+.fi
+.
+.IP "" 0
+.
+.SH "SEE ALSO"
+Project page: \fIhttps://github\.com/landonb/reputed\-tiler\fR
+.
+.SH "COPYRIGHT"
+(c) 2019 Landon Bouma
+.
+.P
+reputed\-tiler is released under the terms of an AGPLv3 license\.

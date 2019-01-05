@@ -30,6 +30,8 @@ before_command () {
   FRIES__VERSION=0.0.1
 
   ORIG_OFFSET_GEOM=""
+  MOVE_OFFSET_GEOM=""
+  NEXT_REPEAT_NUMB="0"
 }
 
 after_command () {
@@ -170,7 +172,7 @@ active_window_offset_geom () {
 
   local offset_geom
   offset_geom="${position[0]},${position[1]},${geometry[0]},${geometry[1]}"
-  log "offset_geom: ${offset_geom}"
+  log "active_window_offset_geom: offset_geom: ${offset_geom}"
   echo "${offset_geom}"
 }
 
@@ -178,11 +180,12 @@ active_window_offset_geom () {
 
 read_last_used_direction () {
   local direction="$1"
-  local repeatedn="0"
+#  local repeatedn="0"
+#  NEXT_REPEAT_NUMB="0"
   # Look for the last command's dropping.
   local droppingf="${HOME}/.cache/${FRIES__CMDNAME}/cycles/${direction}"
   log "droppingf: ${droppingf}"
-  log "  >> $(cat ${droppingf})"
+  [[ -f "${droppingf}" ]] && log "  >> $(cat ${droppingf})"
   if [[ -f "${droppingf}" ]]; then
     local PARTS=()
     local OLD_IFS=$IFS
@@ -205,24 +208,25 @@ read_last_used_direction () {
       log "cur_offsetgeo: ${cur_offsetgeo}"
 
       if [[ "${was_offsetgeo}" == "${cur_offsetgeo}" ]]; then
-        repeatedn="$(( ${PARTS[0]} + 1 ))"
-        log "repeatedn++: ${repeatedn}"
+        NEXT_REPEAT_NUMB="$(( ${PARTS[0]} + 1 ))"
+        log "NEXT_REPEAT_NUMB++: ${NEXT_REPEAT_NUMB}"
 
-        ORIG_OFFSET_GEOM="${PARTS[4]}"
+        ORIG_OFFSET_GEOM="${PARTS[3]}"
       fi
     fi
   fi
   if [[ -z "${ORIG_OFFSET_GEOM}" ]]; then
-    # assert: [[ ${repeatedn} -eq 0 ]]
+    # assert: [[ ${NEXT_REPEAT_NUMB} -eq 0 ]]
     ORIG_OFFSET_GEOM="$(active_window_offset_geom)"
   fi
-  log "ORIG_OFFSET_GEOM: ${ORIG_OFFSET_GEOM}"
-  echo "${repeatedn}"
+  log "read_last_used_direction: ORIG_OFFSET_GEOM: ${ORIG_OFFSET_GEOM}"
+  log "read_last_used_direction: NEXT_REPEAT_NUMB: ${NEXT_REPEAT_NUMB}"
+#  echo "${NEXT_REPEAT_NUMB}"
 }
 
 record_last_used_direction () {
   local direction="$1"
-  local repeatedn="$2"
+#  local repeatedn="$2"  # NEXT_REPEAT_NUMB
 #  local offsetgeo="$3"
 
   # Ensure the directory exists, e.g., ~/.cache/reputed-tiler
@@ -235,8 +239,11 @@ record_last_used_direction () {
   local offsetgeo
   offsetgeo="$(active_window_offset_geom)"
 
+  log "record_last_used_direction: ORIG_OFFSET_GEOM: ${ORIG_OFFSET_GEOM}"
+  log "record_last_used_direction: NEXT_REPEAT_NUMB: ${NEXT_REPEAT_NUMB}"
+
   # Leave a command dropping.
-  echo -e "${repeatedn} $(date -u '+%s') ${offsetgeo} ${ORIG_OFFSET_GEOM}" > ${HOME}/.cache/${FRIES__CMDNAME}/cycles/${direction}
+  echo -e "${NEXT_REPEAT_NUMB} $(date -u '+%s') ${offsetgeo} ${ORIG_OFFSET_GEOM}" > ${HOME}/.cache/${FRIES__CMDNAME}/cycles/${direction}
 }
 
 # ***
@@ -263,7 +270,7 @@ maybe_unset_maximized () {
 
 determine_offsetgeo () {
   local direction="$1"
-  local repeatedn="$2"
+#  local repeatedn="$2"  # NEXT_REPEAT_NUMB
 
 
   # Margins around windows (elementary OS native apps) (HiDPI)
@@ -275,6 +282,9 @@ MARGIN_TOP=0
 MARGIN_RIGHT=0
 MARGIN_BOTTOM=0
 MARGIN_LEFT=0
+
+#MARGIN_RIGHT=-6
+#MARGIN_TOP=-56
 
   # Desktops info
   #INFO=$(wmctrl -d | head -1)
@@ -328,45 +338,81 @@ MARGIN_LEFT=0
 
   X_LEFT=$((0-($MARGIN_RIGHT+$OFFSET_X)))
   X_CENTER=$(($AV_WIDTH/2+$MARGIN_RIGHT+$MARGIN_LEFT))
+  X_THIRD=$(($AV_WIDTH/3+$MARGIN_RIGHT+$MARGIN_LEFT))
   HALF_WIDTH=$X_CENTER
+  THIRD_WIDTH=$X_THIRD
+
   Y_TOP=$((0-($MARGIN_TOP-$OFFSET_Y)))
   Y_CENTER=$(($Y_TOP+$HEIGHT/2))
+  Y_THIRD=$(($Y_TOP+$HEIGHT/3))
   HALF_HEIGHT=$(($AV_HEIGHT/2+$MARGIN_TOP+$MARGIN_BOTTOM))
-  SIZE=$HALF_WIDTH,$HALF_HEIGHT
+  THIRD_HEIGHT=$(($AV_HEIGHT/3+$MARGIN_TOP+$MARGIN_BOTTOM))
+
+  QUARTER_SIZE=$HALF_WIDTH,$HALF_HEIGHT
+  TALLHALF_SIZE=$AV_WIDTH,$HALF_HEIGHT
+  WIDEHALF_SIZE=$HALF_WIDTH,$AV_HEIGHT
+  TALLTHIRD_SIZE=$AV_WIDTH,$THIRD_HEIGHT
+  WIDETHIRD_SIZE=$THIRD_WIDTH,$AV_HEIGHT
 
   log "X_LEFT: ${X_LEFT} / X_CENTER: ${X_CENTER} / Y_TOP: ${Y_TOP} / Y_CENTER: ${Y_CENTER}"
-  log "SIZE: ${SIZE}"
+  log "QUARTER_SIZE: ${QUARTER_SIZE}"
 
-  local offsetgeo
+#  local offsetgeo  # MOVE_OFFSET_GEOM
   case "${direction}" in
     left)
-      offsetgeo="$X_LEFT,$Y_TOP,$SIZE"
+      case "${NEXT_REPEAT_NUMB}" in
+        "1")
+          MOVE_OFFSET_GEOM="$X_LEFT,$Y_TOP,$WIDETHIRD_SIZE"
+          ;;
+        "2")
+          MOVE_OFFSET_GEOM="$X_LEFT,$Y_TOP,$QUARTER_SIZE"
+          ;;
+        "3")
+# upper right:
+#          MOVE_OFFSET_GEOM="$X_CENTER,$Y_TOP,$QUARTER_SIZE"
+          MOVE_OFFSET_GEOM="$X_LEFT,$Y_CENTER,$QUARTER_SIZE"
+          ;;          
+        "4")
+          # [lb]: FIXME/2019-01-04: This is specific to my T480, deal.
+          #   Includes 6 pixel left margin, and 56 pixel top margin.
+          MOVE_OFFSET_GEOM="320,82,998,835"
+          ;;
+        "5")
+          MOVE_OFFSET_GEOM="${ORIG_OFFSET_GEOM}"
+          ;;
+        "0")
+          ;&
+        *)
+          # 0, or greater than number in cycle.
+          MOVE_OFFSET_GEOM="$X_LEFT,$Y_TOP,$WIDEHALF_SIZE"
+          NEXT_REPEAT_NUMB=0
+      esac
       ;;
     top)
       ;&
     up)
-      offsetgeo="$X_CENTER,$Y_TOP,$SIZE"
+      MOVE_OFFSET_GEOM="$X_CENTER,$Y_TOP,$QUARTER_SIZE"
       ;;
     right)
-      offsetgeo="$X_LEFT,$Y_CENTER,$SIZE"
+      MOVE_OFFSET_GEOM="$X_LEFT,$Y_CENTER,$QUARTER_SIZE"
       ;;
     bottom)
       ;&
     down)
-      offsetgeo="$X_CENTER,$Y_CENTER,$SIZE"
+      MOVE_OFFSET_GEOM="$X_CENTER,$Y_CENTER,$QUARTER_SIZE"
       ;;
     # ***
     topleft)
-      offsetgeo="$X_LEFT,$Y_TOP,$SIZE"
+      MOVE_OFFSET_GEOM="$X_LEFT,$Y_TOP,$QUARTER_SIZE"
       ;;
     topright)
-      offsetgeo="$X_CENTER,$Y_TOP,$SIZE"
+      MOVE_OFFSET_GEOM="$X_CENTER,$Y_TOP,$QUARTER_SIZE"
       ;;
     bottomleft)
-      offsetgeo="$X_LEFT,$Y_CENTER,$SIZE"
+      MOVE_OFFSET_GEOM="$X_LEFT,$Y_CENTER,$QUARTER_SIZE"
       ;;
     bottomright)
-      offsetgeo="$X_CENTER,$Y_CENTER,$SIZE"
+      MOVE_OFFSET_GEOM="$X_CENTER,$Y_CENTER,$QUARTER_SIZE"
       ;;
     # ***
     *)
@@ -375,8 +421,11 @@ MARGIN_LEFT=0
       exit 2
       ;;
   esac
-  log "offsetgeo: ${offsetgeo}"
-  echo "${offsetgeo}"
+
+
+#  log "offsetgeo: ${offsetgeo}"
+#  echo "${offsetgeo}"
+  log "MOVE_OFFSET_GEOM: ${MOVE_OFFSET_GEOM}"
 }
 
 # ***
@@ -395,22 +444,27 @@ reputed-tiler () {
 
   must_be_known_direction "${direction}"
 
-  local same_cmd_repeated_count
-  same_cmd_repeated_count=$(read_last_used_direction "${direction}")
-  log "same_cmd_repeated_count: ${same_cmd_repeated_count}"
+  read_last_used_direction "${direction}"
+  log "NEXT_REPEAT_NUMB: ${NEXT_REPEAT_NUMB}"
 
-  local offsetgeo
-  offsetgeo=$(determine_offsetgeo "${direction}" "${same_cmd_repeated_count}")
-  log "offsetgeo/2: ${offsetgeo}"
+#  local offsetgeo
+#  offsetgeo=$(determine_offsetgeo "${direction}")
+#  log "offsetgeo/2: ${offsetgeo}"
+#
+#  CMD="wmctrl -r :ACTIVE: -e 0,${offsetgeo}"
+  determine_offsetgeo "${direction}"
+  log "MOVE_OFFSET_GEOM/2: ${MOVE_OFFSET_GEOM}"
 
-  CMD="wmctrl -r :ACTIVE: -e 0,${offsetgeo}"
-
-  maybe_unset_maximized
-
-  eval $($CMD)
+  if [[ -n ${MOVE_OFFSET_GEOM} ]]; then
+    maybe_unset_maximized
+    CMD="wmctrl -r :ACTIVE: -e 0,${MOVE_OFFSET_GEOM}"
+    log "CMD: ${CMD}"
+    eval $($CMD)
+  fi
 
 #  record_last_used_direction "${direction}" "${same_cmd_repeated_count}" "${offsetgeo}"
-  record_last_used_direction "${direction}" "${same_cmd_repeated_count}"
+#  record_last_used_direction "${direction}" "${same_cmd_repeated_count}"  # NEXT_REPEAT_NUMB
+  record_last_used_direction "${direction}"
 }
 
 # ***

@@ -152,26 +152,28 @@ unlink: unlinkBin unlinkMan removeEmpties removeManBaseMaybe compileMan
 .PHONY : installBin
 installBin:
 	@mkdir -p $(TARGET) || exit 1
-	@find bin/ -type f -o -type l -exec install {} $(TARGET)/ \;
+	@find bin/ \( -type f -o -type l \) -exec install {} $(TARGET)/ \;
 
 .PHONY : uninstallBin
 uninstallBin:
 	@cd $(mkfile_base)/bin \
-		&& find . -type f -o -type l -exec /bin/bash -c \
-			"[[ -f $(TARGET)/{} && ! -h $(TARGET)/{} ]] && rm -f $(TARGET)/{} || true" \;
+		&& find . \( -type f -o -type l \) -exec /bin/bash -c \
+			"[[ -f $(TARGET)/{} && ! -h $(TARGET)/{} ]] && /bin/rm -f $(TARGET)/{} || true" \;
 
 .PHONY : linkBin
 linkBin:
 	@mkdir -p $(TARGET) || exit 1
 	@cd $(mkfile_base)/bin \
-		&& find . -type f -o -type l -exec /bin/bash -c \
-			"ln -sf \$$(realpath $(mkfile_base)/bin/{}) $(TARGET)/" \;
+		&& find . -type f -exec /bin/bash -c \
+			"ln -sf \$$(realpath $(mkfile_base)/bin/{}) $(TARGET)/" \; \
+		&& find . -type l -exec /bin/bash -c \
+			"ln -sf $(mkfile_base)/bin/{} $(TARGET)/" \;
 
 .PHONY : unlinkBin
 unlinkBin:
 	@cd $(mkfile_base)/bin \
-		&& find . -type f -o -type l -exec /bin/bash -c \
-			"[[ -h $(TARGET)/{} ]] && rm -f $(TARGET)/{} || true" \;
+		&& find . \( -type f -o -type l \) -exec /bin/bash -c \
+			"[[ -h $(TARGET)/{} ]] && /bin/rm -f $(TARGET)/{} || true" \;
 
 # Both `uninstall` and `unlink` attempt to remove the
 # directory hierarchy that this Makefile may have made.

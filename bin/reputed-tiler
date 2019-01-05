@@ -1,7 +1,16 @@
 #!/bin/bash
 # vim:tw=0:ts=2:sw=2:et:ft=sh:
 
-# [lb]: quicktile broken in tara/bionic/18.04:
+# [lb]: QuickTile by ssokolow (similar to WinSplit Revolution)
+# is an edge tiling window feature.
+#
+# - Quicktile home:
+#
+#   http://ssokolow.com/quicktile/
+#
+# But quicktile is broken in tara/bionic/18.04:
+#
+# - #95: "python-wnck removed in Ubuntu 18.04"
 #
 #   https://github.com/ssokolow/quicktile/issues/95
 #
@@ -10,6 +19,27 @@
 # - "Crude quarter tiling tool"
 #
 #   https://gist.github.com/peteruithoven/db0cba0b0849c8cb5e267f6e75126304
+#
+# that I've greatly enhanced herein.
+#
+# The basic tiling behavior is similar to Windows 7 and better, GNOME 3,
+# and Cinnamon, where when you drag a window to the top, bottom, left or
+# right of the screen, the window assumes a window size half of the screen.
+# (Note that in MATE, once you drag a window to one of the four sides, you
+# cannot resize it afterwards, which is super annoying, and one reason having
+# an alternative tiler is nice, because they will not have the same issue.)
+#
+# The default quicktile behavior was to capture keys itself, and to map
+# Ctrl + Alt + numpad 1 through 9 to their associated directions (e.g.,
+# 4 for left, 7 for topleft, etc.).
+#
+# But reputed-tile is simple, and relies on the user to configured
+# keybindings themselves. Reptile also assumes not having a numpad,
+# but having arrow keys, and suggests mapping the Windows key and
+# the four arrow keys to the four major directions -- left, top, right,
+# and bottom -- and to use repetition magic to indicate other tile
+# placements, e.g., a left followed by a top will translate to upper-left,
+# and a left followed by a right will center the window.
 
 # ***
 

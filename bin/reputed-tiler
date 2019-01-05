@@ -1,55 +1,176 @@
 #!/bin/bash
+# vim:tw=0:ts=2:sw=2:et:ft=sh:
 
-# Crude quarter tiling tool
-# Installation:
-# Move file to: /usr/local/bin/quarter-tiler
-# Make executable: sudo chmod +x /usr/local/bin/quarter-tiler
-# Assign keyboard shortcuts to commands like "quarter-tiler topleft"
+# [lb]: quicktile broken in tara/bionic/18.04:
+#
+#   https://github.com/ssokolow/quicktile/issues/95
+#
+# Fortunately, I found a very capable, hackable replacement.
+#
+# - "Crude quarter tiling tool"
+#
+#   https://gist.github.com/peteruithoven/db0cba0b0849c8cb5e267f6e75126304
 
-# Margins around windows (elementary OS native apps) (HiDPI)
-MARGIN_TOP=130
-MARGIN_RIGHT=158
-MARGIN_BOTTOM=185
-MARGIN_LEFT=158
-# Desktops info
-INFO=$(wmctrl -d | head -1)
-# Desktop size
-[[ $INFO =~ 'DG: '([0-9]+)'x'([0-9]+) ]]
-WIDTH=${BASH_REMATCH[1]}
-HEIGHT=${BASH_REMATCH[2]}
-# Available width height, and offsets see: $ wmctrl -d
-[[ $INFO =~ 'WA: '([0-9]+)','([0-9]+)' '([0-9]+)'x'([0-9]+) ]]
-OFFSET_X=${BASH_REMATCH[1]}
-OFFSET_Y=${BASH_REMATCH[2]}
-AV_WIDTH=${BASH_REMATCH[3]}
-AV_HEIGHT=${BASH_REMATCH[4]}
+before_command () {
+  FRIES__CMDNAME="reputed-tiler"
+  FRIES__VERSION=0.0.1
+}
 
-X_LEFT=$((0-($MARGIN_RIGHT+$OFFSET_X)))
-X_CENTER=$(($AV_WIDTH/2+$MARGIN_RIGHT+$MARGIN_LEFT))
-HALF_WIDTH=$X_CENTER
-Y_TOP=$((0-($MARGIN_TOP-$OFFSET_Y)))
-Y_CENTER=$(($Y_TOP+$HEIGHT/2))
-HALF_HEIGHT=$(($AV_HEIGHT/2+$MARGIN_TOP+$MARGIN_BOTTOM))
-SIZE=$HALF_WIDTH,$HALF_HEIGHT
+after_command () {
+  unset FRIES__CMDNAME
+  unset FRIES__VERSION
+}
 
-case "$1" in
-topleft)
-CMD="wmctrl -r :ACTIVE: -e 0,$X_LEFT,$Y_TOP,$SIZE"
-;;
-topright)
-CMD="wmctrl -r :ACTIVE: -e 0,$X_CENTER,$Y_TOP,$SIZE"
-;;
-bottomleft)
-CMD="wmctrl -r :ACTIVE: -e 0,$X_LEFT,$Y_CENTER,$SIZE"
-;;
-bottomright)
-CMD="wmctrl -r :ACTIVE: -e 0,$X_CENTER,$Y_CENTER,$SIZE"
-;;
-esac
+print_version_and_exit () {
+  # Use hard coded name, not $0, which is 'bash' when file is sourced.
+  >&2 echo "${FRIES__CMDNAME} version ${FRIES__VERSION}"
+  exit 0
+}
 
-# In case window is tiled, disable tile
-wmctrl -r :ACTIVE: -b remove,maximized_vert
-# Wait for transition
-sleep 0.1s
+print_help_and_exit () {
+  >&2 echo "Usage: ${FRIES__CMDNAME} [-v|--version] [-h|--help] <name>"
+  >&2 echo "See \`man ${FRIES__CMDNAME}\` for more help"
+  exit 0
+}
 
-eval $($CMD)
+parse_first_positional () {
+  local first_one=''
+  local skip_opts=false
+  while [[ "$1" != '' ]]; do
+    if [[ "$1" == '--' ]]; then
+      skip_opts=true
+      shift
+      continue
+    elif ! ${skip_opts}; then
+      case $1 in
+        -v)
+          print_version_and_exit
+          ;;
+        --version)
+          print_version_and_exit
+          ;;
+        -h)
+          print_help_and_exit
+          ;;
+        --help)
+          print_help_and_exit
+          ;;
+      esac
+    fi
+    if [[ -z ${first_one} ]]; then
+      first_one=$1
+    fi
+    shift
+  done
+  if [[ -z ${first_one} ]]; then
+    >&2 echo 'Missing one of: left|up|right|down'
+    exit 2
+  fi
+  echo "${first_one}"
+}
+
+# ***
+
+reputed-tiler () {
+  # Margins around windows (elementary OS native apps) (HiDPI)
+  MARGIN_TOP=130
+  MARGIN_RIGHT=158
+  MARGIN_BOTTOM=185
+  MARGIN_LEFT=158
+
+  # Desktops info
+  INFO=$(wmctrl -d | head -1)
+
+  # Desktop size
+  [[ $INFO =~ 'DG: '([0-9]+)'x'([0-9]+) ]]
+  WIDTH=${BASH_REMATCH[1]}
+  HEIGHT=${BASH_REMATCH[2]}
+
+  # Available width height, and offsets see: $ wmctrl -d
+  [[ $INFO =~ 'WA: '([0-9]+)','([0-9]+)' '([0-9]+)'x'([0-9]+) ]]
+  OFFSET_X=${BASH_REMATCH[1]}
+  OFFSET_Y=${BASH_REMATCH[2]}
+  AV_WIDTH=${BASH_REMATCH[3]}
+  AV_HEIGHT=${BASH_REMATCH[4]}
+
+# jchannon commented on Nov 8
+# If you change monitors/resolutions this will fail slightly.
+# Have amended the script to get the resolutions of the monitors below
+#
+#RESOLUTIONS=$(wmctrl -d | head -1 | awk '{x=$4"x"$9; print x}')
+#j1=$(echo $RESOLUTIONS | cut -d'x' -f1)
+#j2=$(echo $RESOLUTIONS | cut -d'x' -f2)
+#j3=$(echo $RESOLUTIONS | cut -d'x' -f3)
+#j4=$(echo $RESOLUTIONS | cut -d'x' -f4)
+#
+#AV_WIDTH=$j3
+#AV_HEIGHT=$j4
+## Desktop size
+#WIDTH=$j1
+#HEIGHT=$j2
+
+  X_LEFT=$((0-($MARGIN_RIGHT+$OFFSET_X)))
+  X_CENTER=$(($AV_WIDTH/2+$MARGIN_RIGHT+$MARGIN_LEFT))
+  HALF_WIDTH=$X_CENTER
+  Y_TOP=$((0-($MARGIN_TOP-$OFFSET_Y)))
+  Y_CENTER=$(($Y_TOP+$HEIGHT/2))
+  HALF_HEIGHT=$(($AV_HEIGHT/2+$MARGIN_TOP+$MARGIN_BOTTOM))
+  SIZE=$HALF_WIDTH,$HALF_HEIGHT
+
+# ***
+
+  # Note: `local var=$(cmd)` always returns local's status of 0, so
+  #       declare first, and then set it, as two separate operations.
+  local first_one
+  first_one=$(parse_first_positional "${@}") || return $?
+
+  # File path is empty if command already handled, e.g., -v, or -h, etc.
+  [[ -z ${first_one} ]] && return
+
+  # Shake off $first_one. Remainder is optional arguments to `find`.
+  shift
+
+# ***
+
+
+  case "${first_one}" in
+    topleft)
+      CMD="wmctrl -r :ACTIVE: -e 0,$X_LEFT,$Y_TOP,$SIZE"
+      ;;
+    topright)
+      CMD="wmctrl -r :ACTIVE: -e 0,$X_CENTER,$Y_TOP,$SIZE"
+      ;;
+    bottomleft)
+      CMD="wmctrl -r :ACTIVE: -e 0,$X_LEFT,$Y_CENTER,$SIZE"
+      ;;
+    bottomright)
+      CMD="wmctrl -r :ACTIVE: -e 0,$X_CENTER,$Y_CENTER,$SIZE"
+      ;;
+    *)
+      >&2 echo "Unrecognized direction: “${first_one}”"
+      exit 2
+      ;;
+  esac
+
+  # In case window is tiled, disable tile
+  wmctrl -r :ACTIVE: -b remove,maximized_vert
+  # Wait for transition
+  sleep 0.1s
+
+  eval $($CMD)
+}
+
+# ***
+
+main () {
+  before_command
+  if [[ ${BASH_SOURCE[0]} != "$0" ]]; then
+    export -f reputed-tiler
+  else
+    reputed-tiler "${@}"
+  fi
+  after_command
+}
+
+main "${@}"
+

@@ -47,6 +47,8 @@ after_command () {
   unset FRIES__VERSION
 
   unset ORIG_OFFSET_GEOM
+  unset MOVE_OFFSET_GEOM
+  unset NEXT_REPEAT_NUMB
 }
 
 print_version_and_exit () {
@@ -163,10 +165,6 @@ active_window_offset_geom () {
   IFS=','
   read -ra position <<< ${position_xy}
 
-  #log "position_xy: ${position_xy}"
-  #log "position[0]: ${position[0]}"
-  #log "position[1]: ${position[1]}"
-
   # ***
 
   local geometry=()
@@ -178,10 +176,6 @@ active_window_offset_geom () {
   )"
   IFS='x'
   read -ra geometry <<< ${geometry_wh}
-
-  #log "geometry_wh: ${geometry_wh}"
-  #log "geometry[0]: ${geometry[0]}"
-  #log "geometry[1]: ${geometry[1]}"
 
   # ***
 

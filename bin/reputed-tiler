@@ -37,8 +37,12 @@ before_command () {
   FRIES__CMDNAME="reputed-tiler"
   FRIES__VERSION=0.0.1
 
+  # E.g., ~/.cache/reputed-tiler/.latest.tile.job
+  LAST_JOB_CACHE_F="${HOME}/.cache/${FRIES__CMDNAME}/.latest.tile.job"
+
   ORIG_OFFSET_GEOM=""
   MOVE_OFFSET_GEOM=""
+  MOVE_DIRECTION=""
   NEXT_REPEAT_NUMB="0"
 }
 
@@ -46,8 +50,11 @@ after_command () {
   unset FRIES__CMDNAME
   unset FRIES__VERSION
 
+  unset LAST_JOB_CACHE_F
+
   unset ORIG_OFFSET_GEOM
   unset MOVE_OFFSET_GEOM
+  unset MOVE_DIRECTION
   unset NEXT_REPEAT_NUMB
 }
 
@@ -131,6 +138,73 @@ must_be_known_direction () {
 
 # ***
 
+magic_direction () {
+  local old_dir="$1"
+  local new_dir="$2"
+  log "MOVE_DIRECTION/1: ${MOVE_DIRECTION}"
+  case "${old_dir}" in
+    "left")
+      case "${new_dir}" in
+        "top")
+          MOVE_DIRECTION="topleft"
+          ;;
+        "right")
+          MOVE_DIRECTION="center"
+          # MAYBE/2019-01-04: Add a center cycle?
+          #   Distinguish between topcenter, bottomcenter, leftcenter, rightcenter?
+          #  MOVE_DIRECTION="topcenter"
+          #  NEXT_REPEAT_NUMB="2"
+          ;;
+        "bottom")
+          MOVE_DIRECTION="bottomleft"
+          ;;
+      esac
+    ;;
+    "top")
+      case "${new_dir}" in
+        "left")
+          MOVE_DIRECTION="topleft"
+          ;;
+        "right")
+          MOVE_DIRECTION="topright"
+          ;;
+        "bottom")
+          MOVE_DIRECTION="center"
+          ;;
+      esac
+    ;;
+    "right")
+      case "${new_dir}" in
+        "left")
+          MOVE_DIRECTION="center"
+          ;;
+        "top")
+          MOVE_DIRECTION="topright"
+          ;;
+        "bottom")
+          MOVE_DIRECTION="bottomright"
+          ;;
+      esac
+    ;;
+    "bottom")
+      case "${new_dir}" in
+        "left")
+          MOVE_DIRECTION="bottomleft"
+          ;;
+        "top")
+          MOVE_DIRECTION="center"
+          ;;
+        "right")
+          MOVE_DIRECTION="bottomright"
+          ;;
+      esac
+    ;;
+  esac
+  log "MOVE_DIRECTION/2: ${MOVE_DIRECTION}"
+}
+
+# ***
+
 active_window_offset_geom () {
   # [lb]: MAYBE/2019-01-04: Will "Position" always have "screen" ending?
   #
@@ -193,36 +267,49 @@ active_window_offset_geom () {
 
 read_last_used_direction () {
   local direction="$1"
+  MOVE_DIRECTION="${direction}"
   # Look for the last command's dropping.
-  local droppingf="${HOME}/.cache/${FRIES__CMDNAME}/cycles/${direction}"
-  log "droppingf: ${droppingf}"
-  [[ -f "${droppingf}" ]] && log "  >> $(cat ${droppingf})"
-  if [[ -f "${droppingf}" ]]; then
+  log "LAST_JOB_CACHE_F: ${LAST_JOB_CACHE_F}"
+  [[ -f "${LAST_JOB_CACHE_F}" ]] && log "  >> $(cat ${LAST_JOB_CACHE_F})"
+  if [[ -f "${LAST_JOB_CACHE_F}" ]]; then
     local PARTS=()
     local OLD_IFS=$IFS
     IFS=' '
-    read -ra PARTS <<< $(cat "${droppingf}")
+    read -ra PARTS <<< $(cat "${LAST_JOB_CACHE_F}")
     IFS=$OLD_IFS
 
-    log "PARTS[0]: ${PARTS[0]}"
-    log "PARTS[1]: ${PARTS[1]}"
-    log "PARTS[2]: ${PARTS[2]}"
-    log "PARTS[3]: ${PARTS[3]}"
+    log "PARTS[0]: ${PARTS[0]}"  # direction
+    log "PARTS[1]: ${PARTS[1]}"  # ${NEXT_REPEAT_NUMB}
+    log "PARTS[2]: ${PARTS[2]}"  # $(date -u '+%s')
+    log "PARTS[3]: ${PARTS[3]}"  # $(active_window_offset_geom)
+    log "PARTS[4]: ${PARTS[4]}"  # ${ORIG_OFFSET_GEOM}
 
-    if [[ "${PARTS[1]}" -gt $(date -u '+%s' -d'1 minute ago') ]]; then
+    # Check that the last action was within the 30 secoinds,
+    # otherwise always start the sequence over.
+    if [[ "${PARTS[2]}" -gt $(date -u '+%s' -d'30 seconds ago') ]]; then
+      # Check that the window has not been moved since the
+      # last command (otherwise start the sequence over).
       local was_offsetgeo
-      was_offsetgeo="${PARTS[2]}"
+      was_offsetgeo="${PARTS[3]}"
       log "was_offsetgeo: ${was_offsetgeo}"
-
       local cur_offsetgeo
       cur_offsetgeo="$(active_window_offset_geom)"
       log "cur_offsetgeo: ${cur_offsetgeo}"
-
       if [[ "${was_offsetgeo}" == "${cur_offsetgeo}" ]]; then
-        NEXT_REPEAT_NUMB="$(( ${PARTS[0]} + 1 ))"
-        log "NEXT_REPEAT_NUMB++: ${NEXT_REPEAT_NUMB}"
-
-        ORIG_OFFSET_GEOM="${PARTS[3]}"
+        ORIG_OFFSET_GEOM="${PARTS[4]}"
+        # Check if the direction is the same, and run the normal sequence.
+        if [[ "${PARTS[0]}" == "${direction}" ]]; then
+          NEXT_REPEAT_NUMB="$(( ${PARTS[1]} + 1 ))"
+          log "NEXT_REPEAT_NUMB++: ${NEXT_REPEAT_NUMB}"
+        else
+          # A different direction is specified, but the last command
+          # was within previous 30 seconds, so do something special
+          # but only if on the first part of the sequence.
+          if [[ "${PARTS[1]}" == "0" ]]; then
+            # Set MOVE_DIRECTION.
+            magic_direction "${direction}" "${PARTS[0]}"
+          fi
+        fi
       fi
     fi
   fi
@@ -238,7 +325,7 @@ record_last_used_direction () {
   local direction="$1"
 
   # Ensure the directory exists, e.g., ~/.cache/reputed-tiler
-  /bin/mkdir -p ${HOME}/.cache/${FRIES__CMDNAME}/cycles
+  /bin/mkdir -p "$(dirname "${LAST_JOB_CACHE_F}")"
 
   # The offset and geometry we set may have shifted, depending on what else
   # is occupying the desktop, so don't use the result of determine_offsetgeo,
@@ -251,7 +338,7 @@ record_last_used_direction () {
   log "record_last_used_direction: NEXT_REPEAT_NUMB: ${NEXT_REPEAT_NUMB}"
 
   # Leave a command dropping.
-  echo -e "${NEXT_REPEAT_NUMB} $(date -u '+%s') ${offsetgeo} ${ORIG_OFFSET_GEOM}" > ${HOME}/.cache/${FRIES__CMDNAME}/cycles/${direction}
+  echo -e "${direction} ${NEXT_REPEAT_NUMB} $(date -u '+%s') ${offsetgeo} ${ORIG_OFFSET_GEOM}" > "${LAST_JOB_CACHE_F}"
 }
 
 # ***
@@ -432,6 +519,12 @@ determine_offsetgeo () {
       to_offset_y="${Y_CENTER}"
       ;;
     # ***
+    center)
+      to_offset_x="${X_ONEFOURTH}"
+      to_offset_y="${Y_ONEFOURTH}"
+      to_size="${QUARTER_SIZE}"
+      log "center: X_THIRD: ${X_THIRD} / Y_THIRD: ${Y_THIRD} / QUARTER_SIZE: ${QUARTER_SIZE}"
+      ;;
     *)
       # Unreachable, because checked earlier, but included for completeness.
       >&2 echo "Unrecognized direction: “${direction}”"
@@ -493,7 +586,7 @@ reputed-tiler () {
   read_last_used_direction "${direction}"
   log "NEXT_REPEAT_NUMB: ${NEXT_REPEAT_NUMB}"
 
-  determine_offsetgeo "${direction}"
+  determine_offsetgeo "${MOVE_DIRECTION}"
   log "MOVE_OFFSET_GEOM/2: ${MOVE_OFFSET_GEOM}"
 
   if [[ -n ${MOVE_OFFSET_GEOM} ]]; then
@@ -503,7 +596,7 @@ reputed-tiler () {
     eval $($CMD)
   fi
 
-  record_last_used_direction "${direction}"
+  record_last_used_direction "${MOVE_DIRECTION}"
 }
 
 # ***

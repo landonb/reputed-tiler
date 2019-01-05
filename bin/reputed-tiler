@@ -13,14 +13,22 @@
 
 # ***
 
-#LOGFILE=$(mktemp -du)
-LOGFILE=/tmp/reputed-tiler-tmp.LAcwQ6zU4P
-echo -e "Logging to:\n  ${LOGFILE}"
+DEBUGLOG=${DEBUGLOG:-false}
+# DEVS: Uncomment to create a debug log.
+#   Or run: `DEBUGLOG=true reputated-tiler <dir>`
+#DEBUGLOG=true
+
+# DEVS: To generate a temporary pathname, try:
+#   mktemp -du
+# Here we just hardcode a path, because this feature is
+# not really used, so this path does not really matter.
+LOGFILE="/tmp/reputed-tiler-tmp.LAcwQ6zU4P"
+${DEBUGLOG} && echo -e "Logging to:\n  ${LOGFILE}"
 
 source "${HOME}/.fries/lib/logger.sh"
 
 log () {
-  debug "$@" >> ${LOGFILE}
+  ${DEBUGLOG} && debug "$@" >> ${LOGFILE}
 }
 
 # ***

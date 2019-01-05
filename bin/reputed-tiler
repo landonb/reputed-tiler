@@ -92,24 +92,31 @@ parse_first_positional () {
 # ***
 
 must_be_known_direction () {
-  case "$1" in
-    left)
-      ;;
-    top)
-      ;&
-    up)
-      ;;
-    right)
-      ;;
-    bottom)
-      ;&
-    down)
-      ;;
-    *)
+  local direction
+  direction="$1"
+  if [[ "${direction}" =~ ^(l|left)$ ]]; then
+    echo "left"
+  elif [[ "${direction}" =~ ^(t|top|u|up|upper)$ ]]; then
+    echo "top"
+  elif [[ "${direction}" =~ ^(r|right)$ ]]; then
+    echo "right"
+  elif [[ "${direction}" =~ ^(b|bottom|d|down|lower)$ ]]; then
+    echo "bottom"
+  else
+    NEXT_REPEAT_NUMB="0"
+    if [[ "${direction}" =~ ^(ul|upleft|upperleft|tl|topleft)$ ]]; then
+      echo "topleft"
+    elif [[ "${direction}" =~ ^(ur|upright|upperright|tr|topright)$ ]]; then
+      echo "topright"
+    elif [[ "${direction}" =~ ^(dr|downright|lr|lowerright|br|bottomright)$ ]]; then
+      echo "bottomright"
+    elif [[ "${direction}" =~ ^(dl|downleft|ll|lowerleft|bl|bottomleft)$ ]]; then
+      echo "bottomleft"
+    else
       >&2 echo "Unrecognized direction: “${1}”"
       exit 2
-      ;;
-  esac
+    fi
+  fi
 }
 
 # ***
@@ -129,6 +136,10 @@ active_window_offset_geom () {
   # or
   #
   #   xwininfo -id $(xdotool getactivewindow)
+  #
+  # See also general window details:
+  #
+  #   wmctrl -l -p -G -x
 
   local OLD_IFS=$IFS
 
@@ -180,8 +191,6 @@ active_window_offset_geom () {
 
 read_last_used_direction () {
   local direction="$1"
-#  local repeatedn="0"
-#  NEXT_REPEAT_NUMB="0"
   # Look for the last command's dropping.
   local droppingf="${HOME}/.cache/${FRIES__CMDNAME}/cycles/${direction}"
   log "droppingf: ${droppingf}"
@@ -221,13 +230,10 @@ read_last_used_direction () {
   fi
   log "read_last_used_direction: ORIG_OFFSET_GEOM: ${ORIG_OFFSET_GEOM}"
   log "read_last_used_direction: NEXT_REPEAT_NUMB: ${NEXT_REPEAT_NUMB}"
-#  echo "${NEXT_REPEAT_NUMB}"
 }
 
 record_last_used_direction () {
   local direction="$1"
-#  local repeatedn="$2"  # NEXT_REPEAT_NUMB
-#  local offsetgeo="$3"
 
   # Ensure the directory exists, e.g., ~/.cache/reputed-tiler
   /bin/mkdir -p ${HOME}/.cache/${FRIES__CMDNAME}/cycles
@@ -270,27 +276,20 @@ maybe_unset_maximized () {
 
 determine_offsetgeo () {
   local direction="$1"
-#  local repeatedn="$2"  # NEXT_REPEAT_NUMB
 
+  MARGIN_TOP=0
+  MARGIN_RIGHT=0
+  MARGIN_BOTTOM=0
+  MARGIN_LEFT=0
 
-  # Margins around windows (elementary OS native apps) (HiDPI)
-  MARGIN_TOP=130
-  MARGIN_RIGHT=158
-  MARGIN_BOTTOM=185
-  MARGIN_LEFT=158
-MARGIN_TOP=0
-MARGIN_RIGHT=0
-MARGIN_BOTTOM=0
-MARGIN_LEFT=0
-
-#MARGIN_RIGHT=-6
-#MARGIN_TOP=-56
-
-  # Desktops info
-  #INFO=$(wmctrl -d | head -1)
+  # Get Desktop info.
+  # We could just get the first line:
+  #   INFO=$(wmctrl -d | head -1)
+  # But it seems more legit to get the current desktop's info
+  # (even though they should all be the same, I'd assume).
   INFO=$(wmctrl -d | grep "\* DG")
 
-  # Desktop size
+  # Parse desktop size.
   [[ $INFO =~ 'DG: '([0-9]+)'x'([0-9]+) ]]
   WIDTH=${BASH_REMATCH[1]}
   HEIGHT=${BASH_REMATCH[2]}
@@ -304,115 +303,131 @@ MARGIN_LEFT=0
 
   log "D: ${WIDTH} x ${HEIGHT} / X,Y: ${OFFSET_X},${OFFSET_Y} / AV: ${AV_WIDTH} x ${AV_HEIGHT}"
 
-# jchannon commented on Nov 8
-# If you change monitors/resolutions this will fail slightly.
-# Have amended the script to get the resolutions of the monitors below
-#
-#RESOLUTIONS=$(wmctrl -d | head -1 | awk '{x=$4"x"$9; print x}')
-#j1=$(echo $RESOLUTIONS | cut -d'x' -f1)
-#j2=$(echo $RESOLUTIONS | cut -d'x' -f2)
-#j3=$(echo $RESOLUTIONS | cut -d'x' -f3)
-#j4=$(echo $RESOLUTIONS | cut -d'x' -f4)
-#
-#AV_WIDTH=$j3
-#AV_HEIGHT=$j4
-## Desktop size
-#WIDTH=$j1
-#HEIGHT=$j2
-
-# wmctrl -l -p -G -x
-# wmctrl -r :ACTIVE: -p -G -x
-
-# FIXME: Use ~/.cache/reputed-tiler/cycles/left|up|right|down
-#
-# M+Left → Use left-half of window.
-# M+Left within 1 minute on same window ID → some nice floting size weighted top left
-# M+Left, then M+Up within 1 min on same ID → 1/4 size topleft window
-# M+Up not after M+Left or M+Right → top half of screen
-# M+Up after top half of screen (or if already top half) → middle 1/3, top half; then cycle down?
-#   and do opposite for M+Down repetition
-#
-#
-
-
-
   X_LEFT=$((0-($MARGIN_RIGHT+$OFFSET_X)))
   X_CENTER=$(($AV_WIDTH/2+$MARGIN_RIGHT+$MARGIN_LEFT))
   X_THIRD=$(($AV_WIDTH/3+$MARGIN_RIGHT+$MARGIN_LEFT))
+  X_TWOTHIRDS=$((2*($AV_WIDTH/3)+$MARGIN_RIGHT+$MARGIN_LEFT))
+  X_ONEFOURTH=$((1*($AV_WIDTH/4)+$MARGIN_RIGHT+$MARGIN_LEFT))
+  X_THREEFOURTHS=$((3*($AV_WIDTH/4)+$MARGIN_RIGHT+$MARGIN_LEFT))
   HALF_WIDTH=$X_CENTER
   THIRD_WIDTH=$X_THIRD
+  TWOTHIRDS_WIDTH=$X_TWOTHIRDS
+  THREEFOURTHS_WIDTH=$X_THREEFOURTHS
 
   Y_TOP=$((0-($MARGIN_TOP-$OFFSET_Y)))
   Y_CENTER=$(($Y_TOP+$HEIGHT/2))
   Y_THIRD=$(($Y_TOP+$HEIGHT/3))
+  Y_TWOTHIRDS=$(($Y_TOP+2*($HEIGHT/3)))
+  Y_ONEFOURTH=$(($Y_TOP+1*($HEIGHT/4)))
+  Y_THREEFOURTHS=$(($Y_TOP+3*($HEIGHT/4)))
   HALF_HEIGHT=$(($AV_HEIGHT/2+$MARGIN_TOP+$MARGIN_BOTTOM))
   THIRD_HEIGHT=$(($AV_HEIGHT/3+$MARGIN_TOP+$MARGIN_BOTTOM))
+  TWOTHIRDS_HEIGHT=$((2*($AV_HEIGHT/3)+$MARGIN_TOP+$MARGIN_BOTTOM))
+  THREEFOURTHS_HEIGHT=$((3*($AV_HEIGHT/4)+$MARGIN_TOP+$MARGIN_BOTTOM))
 
   QUARTER_SIZE=$HALF_WIDTH,$HALF_HEIGHT
   TALLHALF_SIZE=$AV_WIDTH,$HALF_HEIGHT
   WIDEHALF_SIZE=$HALF_WIDTH,$AV_HEIGHT
   TALLTHIRD_SIZE=$AV_WIDTH,$THIRD_HEIGHT
   WIDETHIRD_SIZE=$THIRD_WIDTH,$AV_HEIGHT
+  TALLTHREEFOURTHS_SIZE=$AV_WIDTH,$THREEFOURTHS_HEIGHT
+  WIDETHREEFOURTHS_SIZE=$THREEFOURTHS_WIDTH,$AV_HEIGHT
 
   log "X_LEFT: ${X_LEFT} / X_CENTER: ${X_CENTER} / Y_TOP: ${Y_TOP} / Y_CENTER: ${Y_CENTER}"
   log "QUARTER_SIZE: ${QUARTER_SIZE}"
 
-#  local offsetgeo  # MOVE_OFFSET_GEOM
+  local to_offset_x="${X_LEFT}"
+  local to_offset_y="${Y_TOP}"
+  local to_size="${QUARTER_SIZE}"
+
   case "${direction}" in
     left)
       case "${NEXT_REPEAT_NUMB}" in
         "1")
-          MOVE_OFFSET_GEOM="$X_LEFT,$Y_TOP,$WIDETHIRD_SIZE"
-          ;;
-        "2")
-          MOVE_OFFSET_GEOM="$X_LEFT,$Y_TOP,$QUARTER_SIZE"
+          to_size="${WIDETHIRD_SIZE}"
           ;;
         "3")
-# upper right:
-#          MOVE_OFFSET_GEOM="$X_CENTER,$Y_TOP,$QUARTER_SIZE"
-          MOVE_OFFSET_GEOM="$X_LEFT,$Y_CENTER,$QUARTER_SIZE"
-          ;;          
+          to_offset_y="${Y_CENTER}"
+          ;;
         "4")
-          # [lb]: FIXME/2019-01-04: This is specific to my T480, deal.
-          #   Includes 6 pixel left margin, and 56 pixel top margin.
-          MOVE_OFFSET_GEOM="320,82,998,835"
+          to_size="${WIDETHREEFOURTHS_SIZE}"
           ;;
-        "5")
-          MOVE_OFFSET_GEOM="${ORIG_OFFSET_GEOM}"
-          ;;
-        "0")
-          ;&
         *)
-          # 0, or greater than number in cycle.
-          MOVE_OFFSET_GEOM="$X_LEFT,$Y_TOP,$WIDEHALF_SIZE"
-          NEXT_REPEAT_NUMB=0
+          to_size="${WIDEHALF_SIZE}"
+          ;;
       esac
       ;;
     top)
-      ;&
-    up)
-      MOVE_OFFSET_GEOM="$X_CENTER,$Y_TOP,$QUARTER_SIZE"
+      case "${NEXT_REPEAT_NUMB}" in
+        "1")
+          to_size="${TALLTHIRD_SIZE}"
+          ;;
+        "3")
+          to_offset_x="${X_CENTER}"
+          ;;
+        "4")
+          to_size="${TALLTHREEFOURTHS_SIZE}"
+          ;;
+        *)
+          to_size="${TALLHALF_SIZE}"
+          ;;
+      esac
       ;;
     right)
-      MOVE_OFFSET_GEOM="$X_LEFT,$Y_CENTER,$QUARTER_SIZE"
+      to_offset_x="${X_CENTER}"
+      case "${NEXT_REPEAT_NUMB}" in
+        "1")
+          to_offset_x="${X_TWOTHIRDS}"
+          to_size="${WIDETHIRD_SIZE}"
+          ;;
+        "3")
+          to_offset_y="${Y_CENTER}"
+          ;;
+        "4")
+          to_offset_x="${X_ONEFOURTH}"
+          to_size="${WIDETHREEFOURTHS_SIZE}"
+          ;;
+        *)
+          to_size="${WIDEHALF_SIZE}"
+          ;;
+      esac
       ;;
     bottom)
-      ;&
-    down)
-      MOVE_OFFSET_GEOM="$X_CENTER,$Y_CENTER,$QUARTER_SIZE"
+      to_offset_y="${Y_CENTER}"
+      case "${NEXT_REPEAT_NUMB}" in
+        "1")
+          to_offset_y="${Y_TWOTHIRDS}"
+          to_size="${TALLTHIRD_SIZE}"
+          ;;
+        "3")
+          to_offset_x="${X_CENTER}"
+          ;;
+        "4")
+          to_offset_y="${Y_ONEFOURTH}"
+          to_size="${TALLTHREEFOURTHS_SIZE}"
+          ;;
+        *)
+          to_size="${TALLHALF_SIZE}"
+          ;;
+      esac
       ;;
+
     # ***
     topleft)
-      MOVE_OFFSET_GEOM="$X_LEFT,$Y_TOP,$QUARTER_SIZE"
+      to_offset_x="${X_LEFT}"
+      to_offset_y="${Y_TOP}"
       ;;
     topright)
-      MOVE_OFFSET_GEOM="$X_CENTER,$Y_TOP,$QUARTER_SIZE"
-      ;;
-    bottomleft)
-      MOVE_OFFSET_GEOM="$X_LEFT,$Y_CENTER,$QUARTER_SIZE"
+      to_offset_x="${X_CENTER}"
+      to_offset_y="${Y_TOP}"
       ;;
     bottomright)
-      MOVE_OFFSET_GEOM="$X_CENTER,$Y_CENTER,$QUARTER_SIZE"
+      to_offset_x="${X_CENTER}"
+      to_offset_y="${Y_CENTER}"
+      ;;
+    bottomleft)
+      to_offset_x="${X_LEFT}"
+      to_offset_y="${Y_CENTER}"
       ;;
     # ***
     *)
@@ -422,9 +437,38 @@ MARGIN_LEFT=0
       ;;
   esac
 
+  case "${NEXT_REPEAT_NUMB}" in
+    "1")
+      # Third size, either tall, or wide.
+      MOVE_OFFSET_GEOM="${to_offset_x},${to_offset_y},${to_size}"
+      ;;
+    "2")
+      MOVE_OFFSET_GEOM="${to_offset_x},${to_offset_y},${QUARTER_SIZE}"
+      ;;
+    "3")
+      MOVE_OFFSET_GEOM="${to_offset_x},${to_offset_y},${QUARTER_SIZE}"
+      ;;
+    "4")
+      # Three-fourths size, either tall, or wide.
+      MOVE_OFFSET_GEOM="${to_offset_x},${to_offset_y},${to_size}"
+      ;;
+    "5")
+      # [lb]: FIXME/2019-01-04: This is specific to my T480, deal.
+      #   Includes 6 pixel left margin, and 56 pixel top margin.
+      MOVE_OFFSET_GEOM="320,82,998,835"
+      ;;
+    "6")
+      MOVE_OFFSET_GEOM="${ORIG_OFFSET_GEOM}"
+      ;;
+    "0")
+      ;&
+    *)
+      # 0, or greater than number in cycle.
+      MOVE_OFFSET_GEOM="${to_offset_x},${to_offset_y},${to_size}"
+      NEXT_REPEAT_NUMB=0
+      ;;
+  esac
 
-#  log "offsetgeo: ${offsetgeo}"
-#  echo "${offsetgeo}"
   log "MOVE_OFFSET_GEOM: ${MOVE_OFFSET_GEOM}"
 }
 
@@ -442,16 +486,11 @@ reputed-tiler () {
   # Shake off ${direction}. Remainder is optional... and not used.
   shift
 
-  must_be_known_direction "${direction}"
+  direction="$(must_be_known_direction "${direction}")"
 
   read_last_used_direction "${direction}"
   log "NEXT_REPEAT_NUMB: ${NEXT_REPEAT_NUMB}"
 
-#  local offsetgeo
-#  offsetgeo=$(determine_offsetgeo "${direction}")
-#  log "offsetgeo/2: ${offsetgeo}"
-#
-#  CMD="wmctrl -r :ACTIVE: -e 0,${offsetgeo}"
   determine_offsetgeo "${direction}"
   log "MOVE_OFFSET_GEOM/2: ${MOVE_OFFSET_GEOM}"
 
@@ -462,8 +501,6 @@ reputed-tiler () {
     eval $($CMD)
   fi
 
-#  record_last_used_direction "${direction}" "${same_cmd_repeated_count}" "${offsetgeo}"
-#  record_last_used_direction "${direction}" "${same_cmd_repeated_count}"  # NEXT_REPEAT_NUMB
   record_last_used_direction "${direction}"
 }
 

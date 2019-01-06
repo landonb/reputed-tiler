@@ -396,10 +396,10 @@ maybe_unset_maximized () {
 determine_offsetgeo () {
   local direction="$1"
 
+  MARGIN_LEFT=0
   MARGIN_TOP=0
   MARGIN_RIGHT=0
   MARGIN_BOTTOM=0
-  MARGIN_LEFT=0
 
   # Get Desktop info.
   # We could just get the first line:

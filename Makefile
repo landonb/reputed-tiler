@@ -110,17 +110,17 @@ endif
 #   make -qp |
 #     awk -F':' '/^[a-zA-Z0-9][^$$#\/\t=]*:([^=]|$$)/ {split($$1,A,/ /);for(i in A)print A[i]}' |
 #     sort |
-#     /bin/sed 's/^/  /'
+#     /usr/bin/env sed 's/^/  /'
 # so I'll just go the simpler route and parse the .PHONY list.
 .PHONY : help
 help:
 	@echo "Please choose a target for make:"
 	@make -qp \
 		| grep "^\.PHONY" \
-		| /bin/sed 's/^\.PHONY: //' \
+		| /usr/bin/env sed 's/^\.PHONY: //' \
 		| tr ' ' "\n" \
 		| sort \
-		| /bin/sed 's/^/  /'
+		| /usr/bin/env sed 's/^/  /'
 
 # LEARNING: .PHONY specifies that the target name is an internal
 #   Makefile name, and not a file name, otherwise Make will first
@@ -207,7 +207,7 @@ prepareManDirs:
 	@find man/ \
 		-iname "*.[0-9]" \
 		-exec /bin/bash -c \
-			"echo {} | /bin/sed -r 's~.*([0-9])$$~$(MANDIR)/man\1~'" \; \
+			"echo {} | /usr/bin/env sed -E 's~.*([0-9])$$~$(MANDIR)/man\1~'" \; \
 	| sort \
 	| uniq \
 	| xargs mkdir -p
@@ -218,7 +218,7 @@ installMan:
 		-iname "*.[0-9]" \
 		-exec /bin/bash -c \
 			"echo {} \
-				| /bin/sed -r 's~(.*)([0-9])$$~install \1\2 $(MANDIR)/man\2/~' \
+				| /usr/bin/env sed -E 's~(.*)([0-9])$$~install \1\2 $(MANDIR)/man\2/~' \
 				| source /dev/stdin" \;
 
 .PHONY : uninstallMan
@@ -228,7 +228,7 @@ uninstallMan:
 			-iname "*.[0-9]" \
 			-exec /bin/bash -c \
 				"echo {} \
-					| /bin/sed -r 's~(.*)([0-9])$$~[[ -f $(MANDIR)/man\2/\1\2 \&\& ! -h $(MANDIR)/man\2/\1\2 ]] \&\& /bin/rm $(MANDIR)/man\2/\1\2 || true~' \
+					| /usr/bin/env sed -E 's~(.*)([0-9])$$~[[ -f $(MANDIR)/man\2/\1\2 \&\& ! -h $(MANDIR)/man\2/\1\2 ]] \&\& /bin/rm $(MANDIR)/man\2/\1\2 || true~' \
 					| source /dev/stdin" \;
 
 .PHONY : linkMan
@@ -237,7 +237,7 @@ linkMan:
 		-iname "*.[0-9]" \
 		-exec /bin/bash -c \
 			"echo {} \
-				| /bin/sed -r 's~(.*)([0-9])$$~/bin/ln -sf \$$(realpath $(mkfile_base)/\1\2) $(MANDIR)/man\2/~' \
+				| /usr/bin/env sed -E 's~(.*)([0-9])$$~/bin/ln -sf \$$(realpath $(mkfile_base)/\1\2) $(MANDIR)/man\2/~' \
 				| source /dev/stdin" \;
 
 .PHONY : unlinkMan
@@ -247,7 +247,7 @@ unlinkMan:
 			-iname "*.[0-9]" \
 			-exec /bin/bash -c \
 				"echo {} \
-					| /bin/sed -r 's~(.*)([0-9])$$~[[ -h $(MANDIR)/man\2/\1\2 ]] \&\& /bin/rm $(MANDIR)/man\2/\1\2 || true~' \
+					| /usr/bin/env sed -E 's~(.*)([0-9])$$~[[ -h $(MANDIR)/man\2/\1\2 ]] \&\& /bin/rm $(MANDIR)/man\2/\1\2 || true~' \
 					| source /dev/stdin" \;
 
 .PHONY : compileMan

@@ -187,12 +187,12 @@ removeEmpties:
 # if we combined this rule and removeEmpties, such that we had:
 #   removeEmpties:
 #     @[ -d $(MANDIR) ] && find $(MANDIR) -type d -empty -delete || true
-#     @echo $(shell /bin/ls -1 $(MANDIR))
+#     @echo $(shell /usr/bin/env ls -1 $(MANDIR))
 # surprisingly, the ls command shows the empty directories that you'd
 # think the previous line had deleted! So make these separate rules.
 .PHONY : removeManBaseMaybe
 removeManBaseMaybe:
-	@$(eval num_remaining := $(shell /bin/ls -1 $(MANDIR) 2> /dev/null | wc -l))
+	@$(eval num_remaining := $(shell /usr/bin/env ls -1 $(MANDIR) 2> /dev/null | wc -l))
 	@[ $(num_remaining) -eq 1 ] \
 		&& [ -f $(MANDIR)/index.db ] \
 		&& /bin/rm $(MANDIR)/index.db \

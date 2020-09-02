@@ -157,22 +157,22 @@ installBin:
 .PHONY : uninstallBin
 uninstallBin:
 	@cd $(mkfile_base)/bin \
-		&& find . \( -type f -o -type l \) -exec /bin/bash -c \
+		&& find . \( -type f -o -type l \) -exec /usr/bin/env bash -c \
 			"[[ -f $(TARGET)/{} && ! -h $(TARGET)/{} ]] && /bin/rm -f $(TARGET)/{} || true" \;
 
 .PHONY : linkBin
 linkBin:
 	@mkdir -p $(TARGET) || exit 1
 	@cd $(mkfile_base)/bin \
-		&& find . -type f -exec /bin/bash -c \
+		&& find . -type f -exec /usr/bin/env bash -c \
 			"ln -sf \$$(realpath $(mkfile_base)/bin/{}) $(TARGET)/" \; \
-		&& find . -type l -exec /bin/bash -c \
+		&& find . -type l -exec /usr/bin/env bash -c \
 			"ln -sf $(mkfile_base)/bin/{} $(TARGET)/" \;
 
 .PHONY : unlinkBin
 unlinkBin:
 	@cd $(mkfile_base)/bin \
-		&& find . \( -type f -o -type l \) -exec /bin/bash -c \
+		&& find . \( -type f -o -type l \) -exec /usr/bin/env bash -c \
 			"[[ -h $(TARGET)/{} ]] && /bin/rm -f $(TARGET)/{} || true" \;
 
 # Both `uninstall` and `unlink` attempt to remove the
@@ -206,7 +206,7 @@ prepareManDirs:
 	@#       avoid needing to escape path characters.
 	@find man/ \
 		-iname "*.[0-9]" \
-		-exec /bin/bash -c \
+		-exec /usr/bin/env bash -c \
 			"echo {} | /usr/bin/env sed -E 's~.*([0-9])$$~$(MANDIR)/man\1~'" \; \
 	| sort \
 	| uniq \
@@ -216,7 +216,7 @@ prepareManDirs:
 installMan:
 	@find man/ \
 		-iname "*.[0-9]" \
-		-exec /bin/bash -c \
+		-exec /usr/bin/env bash -c \
 			"echo {} \
 				| /usr/bin/env sed -E 's~(.*)([0-9])$$~install \1\2 $(MANDIR)/man\2/~' \
 				| source /dev/stdin" \;
@@ -226,7 +226,7 @@ uninstallMan:
 	@cd $(mkfile_base)/man \
 		&& find . \
 			-iname "*.[0-9]" \
-			-exec /bin/bash -c \
+			-exec /usr/bin/env bash -c \
 				"echo {} \
 					| /usr/bin/env sed -E 's~(.*)([0-9])$$~[[ -f $(MANDIR)/man\2/\1\2 \&\& ! -h $(MANDIR)/man\2/\1\2 ]] \&\& /bin/rm $(MANDIR)/man\2/\1\2 || true~' \
 					| source /dev/stdin" \;
@@ -235,7 +235,7 @@ uninstallMan:
 linkMan:
 	@find man/ \
 		-iname "*.[0-9]" \
-		-exec /bin/bash -c \
+		-exec /usr/bin/env bash -c \
 			"echo {} \
 				| /usr/bin/env sed -E 's~(.*)([0-9])$$~/bin/ln -sf \$$(realpath $(mkfile_base)/\1\2) $(MANDIR)/man\2/~' \
 				| source /dev/stdin" \;
@@ -245,7 +245,7 @@ unlinkMan:
 	@cd $(mkfile_base)/man \
 		&& find . \
 			-iname "*.[0-9]" \
-			-exec /bin/bash -c \
+			-exec /usr/bin/env bash -c \
 				"echo {} \
 					| /usr/bin/env sed -E 's~(.*)([0-9])$$~[[ -h $(MANDIR)/man\2/\1\2 ]] \&\& /bin/rm $(MANDIR)/man\2/\1\2 || true~' \
 					| source /dev/stdin" \;

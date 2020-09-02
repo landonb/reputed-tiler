@@ -83,7 +83,7 @@ Run any of these commands as the superuser to install systemwide to ``/usr/local
 
   Which, if you trust me, you could run as root::
 
-    sudo /bin/bash -c 'curl -Lo- "https://raw.githubusercontent.com/landonb/reputed-tiler/release/install.sh" | bash'
+    sudo /usr/bin/env bash -c 'curl -Lo- "https://raw.githubusercontent.com/landonb/reputed-tiler/release/install.sh" | bash'
 
 - Install systemwide using
   `bpkg <https://github.com/bpkg/bpkg>`__,

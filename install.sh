@@ -4,7 +4,7 @@ GH_USER='landonb'
 GH_REPO='reputed-tiler'
 VERSION=0.0.3
 
-TMPDIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'tmp')
+TMPDIR=$(mktemp -d 2>/dev/null || mktemp -d -t 'tmp.XXXXXXXXXX')
 
 REPODIR=${TMPDIR}/${GH_REPO}-${VERSION}
 

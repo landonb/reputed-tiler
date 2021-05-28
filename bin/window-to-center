@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+# Project: https://github.com/landonb/reputed-tiler#🦎
+# License: MIT. Please find more in the LICENSE file.
+# vim:tw=0:ts=2:sw=2:et:ft=sh:
+
+# This script can be wired as a Mint MATE Keyboard Shortcut to resize
+# and move the active window to the center of the screen.
+#
+# CAVEAT: This script only works as intended with a single monitor.
+#
+#         It you've got your display wired to two or more monitors
+#         (not mirrored), this will move the window to the center
+#         of the logical screen, wherever that happens to be (e.g.,
+#         the window will be tiled across two different monitors).
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+# Ref:
+#
+#   *Center a window via command line*
+#   https://askubuntu.com/questions/104155/center-a-window-via-command-line
+#
+#   *arrange windows by script*
+#   https://askubuntu.com/questions/682027/arrange-windows-by-script/682688
+
+# The AskUbuntu question is simply to center a window, without resizing it:
+#
+#  center_window_no_resize () {
+#    IFS='x' read screenWidth screenHeight < <(xdpyinfo | \
+#      grep dimensions | grep -o '[0-9x]*' | head -n1)
+#
+#    width=$(xdotool getactivewindow getwindowgeometry --shell \
+#      | head -4 | tail -1 | sed 's/[^0-9]*//')
+#    height=$(xdotool getactivewindow getwindowgeometry --shell \
+#      | head -5 | tail -1 | sed 's/[^0-9]*//')
+#
+#    newPosX=$((screenWidth/2-width/2))
+#    newPosY=$((screenHeight/2-height/2))
+#
+#    # Remove special flags that might obstruct windowmove.
+#    wmctrl -ir "$(xdotool getactivewindow)" -b remove,maximized_vert,maximized_horz
+#
+#    xdotool getactivewindow windowmove "$newPosX" "$newPosY"
+#  }
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+TRACE=false
+# DEV: Uncomment to see calculations:
+#  TRACE=true
+
+window_to_center () {
+  measure_screen () {
+    IFS='x' read screen_w screen_h < <(xdpyinfo | grep dimensions | grep -o '[0-9x]*' | head -n1)
+
+    ${TRACE} && echo "screen: width: ${screen_w} / height: ${screen_h}"
+  }
+
+  # NOTE: For brevity, use the magic `:ACTIVE:` identifier to target
+  #       the window in front. E.g.,
+  #         wmctrl -r :ACTIVE: <cmd>
+  #       Alternative, use a subshell to get the window ID:
+  #         wmctrl -ir "$(xdotool getactivewindow)" <cmd>
+
+  # We could use the screen dimensions to resize the window, but the screen
+  # dimensions include the mate-panel widgets. So maximize the window first
+  # and measure that instead. (With the side-effect that the user sees this
+  # happen, which could be annoying to some.)
+  measure_maximized_window () {
+    wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz
+    wmax_w=$(xdotool getactivewindow getwindowgeometry --shell | head -4 | tail -1 | sed 's/[^0-9]*//')
+    wmax_h=$(xdotool getactivewindow getwindowgeometry --shell | head -5 | tail -1 | sed 's/[^0-9]*//')
+    wmctrl -r :ACTIVE: -b remove,maximized_vert,maximized_horz
+
+    ${TRACE} && echo "window: width: ${wmax_w} / height: ${wmax_h}"
+  }
+
+  # Remember: Bash arithmetic doesn't do floats.
+
+  determine_screen_coordinates () {
+    # One-third (is too narrow):
+    #  sposit_x=$((screen_w / 3))
+    # One-half (is still too narrow):
+    #  scrpos_x=$((screen_w / 2 / 2))
+    # We'll resize the window to two-thirds width, so its upper-left
+    # x-position is at one-sixth of the total screen width:
+    scrpos_x=$((screen_w / 3 / 2))
+    # We'll resize to 90% height (which should avoid mate-panel if it's
+    # on the bottom (or top) of your screen), so y-posit is at 1/20th:
+    scrpos_y=$((screen_h / 20))
+  }
+
+  determine_window_size () {
+    # See note above about using maximized window dimensions rather
+    # than screen dimensions. For reference, here's what the centered
+    # window size would be using screen dimensions.
+    if ${TRACE}; then
+      # One-third (is too narrow):
+      #  scrctr_w=$((screen_w / 3))
+      scrctr_w=$((screen_w / 2))
+      scrctr_h=$((9 * screen_h / 10))
+
+      ${TRACE} && echo "screen positn: width: ${scrpos_x} / height: ${scrpos_y}"
+      ${TRACE} && echo "screen center: width: ${scrctr_w} / height: ${scrctr_h}"
+    fi
+
+    # One-third (is too narrow):
+    #  maxctr_w=$((wmax_w / 3))
+    # One-half (is still too narrow):
+    #  maxctr_w=$((wmax_w / 2))
+    # Two-thirds width feels right (on my probably dated) 1920x1080 monitor:
+    maxctr_w=$((2 * wmax_w / 3))
+    # And 90% of the height is nice (to me):
+    maxctr_h=$((9 * wmax_h / 10))
+
+    ${TRACE} && echo "winmax center: width: ${maxctr_w} / height: ${maxctr_h}"
+  }
+
+  move_and_resize_window () {
+    wmctrl -r :ACTIVE: -e 1,${scrpos_x},${scrpos_y},${maxctr_w},${maxctr_h}
+  }
+
+  # ***
+
+  measure_screen
+  measure_maximized_window
+  determine_screen_coordinates
+  determine_window_size
+  move_and_resize_window
+}
+
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ #
+
+main () {
+  window_to_center "$@"
+}
+
+if [ "$0" = "${BASH_SOURCE[0]}" ]; then
+  main "${@}"
+fi
+
